@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Smart Contract Info</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; word-break: break-all; }
+    th { width: 35%; }
+    .error { color: #b00020; }
+    .warn { color: #8a6d00; }
+  </style>
+</head>
+<body>
+  <h1>Smart Contract Info</h1>
+  <button id="refresh">Refresh</button>
+  <p id="status"></p>
+  <table id="result" hidden><tbody></tbody></table>
+  <ul id="warnings" class="warn"></ul>
+
+  <script>
+    const statusEl = document.getElementById("status");
+    const tableEl = document.getElementById("result");
+    const warnEl = document.getElementById("warnings");
+
+    const LABELS = {
+      name: "Token name",
+      symbol: "Symbol",
+      decimals: "Decimals",
+      totalSupply: "Total supply",
+      owner: "Owner",
+      contractAddress: "Contract address",
+      blockNumber: "Latest block",
+    };
+
+    async function load() {
+      statusEl.className = "";
+      statusEl.textContent = "Loading...";
+      tableEl.hidden = true;
+      warnEl.replaceChildren();
+
+      try {
+        const res = await fetch("/api/SaddamApiTest");
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+          throw new Error(body.error?.message || `Request failed (${res.status})`);
+        }
+        render(body.data);
+        statusEl.textContent = "";
+      } catch (err) {
+        statusEl.className = "error";
+        statusEl.textContent = "Error: " + err.message;
+      }
+    }
+
+    // textContent (not innerHTML) so contract-provided strings can't inject HTML
+    function render(data) {
+      const tbody = tableEl.querySelector("tbody");
+      tbody.replaceChildren();
+      const values = { ...data, owner: data.owner ?? "Not available" };
+
+      for (const [key, label] of Object.entries(LABELS)) {
+        const tr = tbody.insertRow();
+        const th = document.createElement("th");
+        th.textContent = label;
+        tr.appendChild(th);
+        tr.insertCell().textContent = values[key];
+      }
+
+      const net = tbody.insertRow();
+      const th = document.createElement("th");
+      th.textContent = "Network";
+      net.appendChild(th);
+      net.insertCell().textContent =
+        `${data.network.name} (chainId ${data.network.chainId})`;
+
+      for (const w of data.warnings) {
+        const li = document.createElement("li");
+        li.textContent = w;
+        warnEl.appendChild(li);
+      }
+      tableEl.hidden = false;
+    }
+
+    document.getElementById("refresh").addEventListener("click", load);
+    load();
+  </script>
+</body>
+</html>
